@@ -1,3 +1,61 @@
+// Radar contacts shown in the hero console. Add/remove/reorder freely —
+// each one gets a scattered position on the ring, derived from its own
+// text, so it lands in the same spot every time instead of jumping around.
+const radarSkills = ["CybOps", "root ~#", "M365"," ", "_0x01","</ >", "SEC", "WEB pTest", "Net" ,""];
+
+function hashSeed(str: string) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function pseudoRandom(seed: number) {
+  const x = Math.sin(seed) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+// Places each skill at a randomized spot on the ring, but rejects
+// candidates that land too close to an already-placed node — so the
+// result stays scattered instead of clustering or overlapping.
+function placeRadarNodes(items: string[]) {
+  const RADIUS_MIN = 78;
+  const RADIUS_MAX = 165;
+  const MIN_GAP = 60;
+  const ATTEMPTS = 30;
+  const placed: { x: number; y: number }[] = [];
+
+  items.forEach((item, i) => {
+    let best = { x: 0, y: 0 };
+    let bestGap = -Infinity;
+
+    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+      const seed = hashSeed(`${item}#${i}#${attempt}`);
+      const angle = pseudoRandom(seed) * 360;
+      const rad = (angle * Math.PI) / 180;
+      const radius = RADIUS_MIN + pseudoRandom(seed + 1) * (RADIUS_MAX - RADIUS_MIN);
+      const x = Math.cos(rad) * radius;
+      const y = Math.sin(rad) * radius;
+
+      const gap = placed.length
+        ? Math.min(...placed.map((p) => Math.hypot(p.x - x, p.y - y)))
+        : Infinity;
+
+      if (gap > bestGap) {
+        bestGap = gap;
+        best = { x, y };
+      }
+      if (bestGap >= MIN_GAP) break;
+    }
+
+    placed.push(best);
+  });
+
+  return placed;
+}
+
 const projects = [
   {
     n: "01", type: "Infrastructure", title: "Microsoft 365 backup architecture",
@@ -83,6 +141,8 @@ function Arrow() {
 }
 
 export default function Home() {
+  const radarPositions = placeRadarNodes(radarSkills);
+
   return (
     <main>
       <div className="header-shell">
@@ -107,8 +167,22 @@ export default function Home() {
           <div className="console-bar"><span>abhay@operations</span><i>● ● ●</i></div>
           <p className="command"><b>$</b> systemctl status career ~#<br/><span>● active (running)</span></p>
           <div className="map">
-            <div className="orbit outer"/><div className="orbit inner"/><div className="core"><strong>AK</strong><small>cYBER</small></div>
-            <i className="node n1">M365</i><i className="node n2">SEC</i><i className="node n3">WEB</i><i className="node n4">NET</i>
+            <div className="orbit outer"/><div className="orbit inner"/>
+            <div className="radar-sweep"/>
+            <span className="radar-ping"/><span className="radar-ping delay"/>
+            <div className="core"><strong>AK</strong><small>CYB3R</small></div>
+            {radarSkills.map((skill, i) => {
+              const { x, y } = radarPositions[i];
+              return (
+                <i
+                  key={`${skill}-${i}`}
+                  className="node"
+                  style={{ left: `calc(50% + ${x.toFixed(2)}px)`, top: `calc(50% + ${y.toFixed(2)}px)` }}
+                >
+                  {skill}
+                </i>
+              );
+            })}
           </div>
           <div className="console-foot"><span>Uptime mindset</span><span>H4CKER</span></div>
         </div>
